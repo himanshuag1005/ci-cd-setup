@@ -9,7 +9,6 @@ jobs:
       - DX_CLI_URL: https://developer.salesforce.com/media/salesforce-cli/sfdx/channels/stable/sfdx-linux-x64.tar.xz
       - TESTLEVEL: RunLocalTests
       - DEPLOYDIR: force-app/main/default
-      - INSTANCE_URL: https://login.salesforce.com
     steps:
       - checkout
       - run:
@@ -39,7 +38,7 @@ jobs:
           name: Authorize Target Deployment Org
           command: |
             #Authorize target org
-            sfdx auth:jwt:grant --instanceurl $ENDPOINT -i $HUB_CONSUMER_KEY -f keys/server.key -u $HUB_SFDX_USER -r $INSTANCE_URL --setalias mainOrg
+            sfdx auth:jwt:grant --instanceurl $ENDPOINT --clientid $HUB_CONSUMER_KEY --jwtkeyfile keys/server.key --username $HUB_SFDX_USER --setalias mainOrg
       - run:
           name: Deploy to Target Deployment Org
           command: |
