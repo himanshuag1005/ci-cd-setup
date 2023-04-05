@@ -1,32 +1,49 @@
-# Use the latest 2.1 version of CircleCI pipeline process engine.
-# See: https://circleci.com/docs/configuration-reference
-version: 2.1
-orbs:
-  salesforce-apex: circleci/salesforce-apex@1.0.1
-
-# Define a job to be invoked later in a workflow.
-# See: https://circleci.com/docs/configuration-reference/#jobs
-jobs:
-  push-metadata:
-    # Specify the execution environment. You can specify an image from Docker Hub or use one of our convenience images from CircleCI's Developer Hub.
-    # See: https://circleci.com/docs/configuration-reference/#executor-job
+version: 2
+jobs: 
+  build: 
     docker:
-      - image: cimg/base:stable
-    # Add steps to the job
-    # See: https://circleci.com/docs/configuration-reference/#steps
+      - image: circleci/node:lts
+    environment:
+      # Variables used in build steps
+      # from https://developer.salesforce.com/tools/sfdxcli
+      - DX_CLI_URL: https://developer.salesforce.com/media/salesforce-cli/sfdx/channels/stable/sfdx-linux-x64.tar.xz
+      - TESTLEVEL: RunLocalTests
+      - DEPLOYDIR: force-app/main/default
     steps:
       - checkout
-      - apex/setup:
-          defaultusername: himanshu@bluepineapple.com
-      - apex/mdapi-deploy:
-          checkonly: false
-          deploy-dir: /force-app/main/default
-          scratch-alias: scratchorg
-          wait-time: -1
-
-# Orchestrate jobs using workflows
-# See: https://circleci.com/docs/configuration-reference/#workflows
-workflows:
-  push-metadata-workflow:
-    jobs:
-      - push-metadata
+      - run:
+          name: "Create SFDX Folder" 
+          command: |
+            # Create sfdx directory
+            mkdir ~/sfdx
+      - run:
+          name: Download CLI
+          command: |
+            # Download cli
+            # By default, the script installs the current version of Salesforce CLI. To install the release candidate, set the DX_CLI_URL_CUSTOM local variable to the appropriate URL
+            wget -qO- ${DX_CLI_URL_CUSTOM-$DX_CLI_URL} | tar xJ -C ~/sfdx --strip-components 1
+      - run:
+          name: Install CLI
+          command: |
+            # Install the cli
+            export PATH=~/sfdx/bin:$PATH
+            echo "export PATH=~/sfdx/bin:$PATH" >> $BASH_ENV
+            sfdx
+      - run:
+          name: Decrypt server key
+          command: |
+            #Decrypt server key
+            openssl enc -nosalt -aes-256-cbc -d -in keys/server.key.enc -out keys/server.key -base64 -K $DECRYPTION_KEY -iv $DECRYPTION_IV
+      - run:
+          name: Authorize Target Deployment Org
+          command: |
+            #Authorize target org
+            sfdx auth:jwt:grant --instanceurl $ENDPOINT  --clientid $HUB_CONSUMER_KEY --jwtkeyfile keys/server.key --username $USER_NAME --setalias mainOrg
+      - run:
+          name: Deploy to Target Deployment Org
+          command: |
+            #Deploy to target deployment org and run unit tests. 
+            sfdx force:mdapi:deploy --wait 10 --deploydir $DEPLOYDIR --targetusername mainOrg --testlevel $TESTLEVEL
+            
+            #Example shows how to run a check only deploy.
+            #sfdx force:mdapi:deploy --checkonly --wait 10 --deploydir $DEPLOYDIR --targetusername mainOrg --testlevel $TESTLEVEL
