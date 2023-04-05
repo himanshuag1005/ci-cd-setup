@@ -8,6 +8,7 @@ jobs:
       # from https://developer.salesforce.com/tools/sfdxcli
       - DX_CLI_URL: https://developer.salesforce.com/media/salesforce-cli/sfdx/channels/stable/sfdx-linux-x64.tar.xz
       - TESTLEVEL: RunLocalTests
+      - SOURCE_OUTPUT_DIR: output_dir
       - DEPLOYDIR: force-app/main/default
     steps:
       - checkout
@@ -43,7 +44,9 @@ jobs:
           name: Deploy to Target Deployment Org
           command: |
             #Deploy to target deployment org and run unit tests. 
-            sfdx force:mdapi:deploy --wait 10 --deploydir $DEPLOYDIR --targetusername mainOrg --testlevel $TESTLEVEL
+            #sfdx force:mdapi:deploy --wait 10 --deploydir $DEPLOYDIR --targetusername mainOrg --testlevel $TESTLEVEL
+
+            sfdx force:source:deploy --manifest manifest/package.xml --wait 15 --targetusername mainOrg
             
             #Example shows how to run a check only deploy.
             #sfdx force:mdapi:deploy --checkonly --wait 10 --deploydir $DEPLOYDIR --targetusername mainOrg --testlevel $TESTLEVEL
